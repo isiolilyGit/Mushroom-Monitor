@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../models/farm.dart';
 import '../providers/farm_provider.dart';
 
@@ -13,12 +14,12 @@ class FarmFormScreen extends StatefulWidget {
 class _FarmFormScreenState extends State<FarmFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final List<_SensorInput> _sensors = [];   // dynamic list of sensor input groups
+  final List<_SensorInput> _sensors = [];
+
+  final _uuid = const Uuid();
 
   void _addSensor() {
-    setState(() {
-      _sensors.add(_SensorInput());
-    });
+    setState(() => _sensors.add(_SensorInput()));
   }
 
   void _removeSensor(int index) {
@@ -29,21 +30,26 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
   }
 
   void _saveFarm() {
-    if (_formKey.currentState!.validate()) {
-      final farm = Farm(
-        name: _nameController.text.trim(),
-        sensors: _sensors
-            .map((s) => SensorSource(
-                  channelId: int.parse(s.channelController.text),
-                  readApiKey: s.apiKeyController.text.trim(),
-                  fieldNumber: int.parse(s.fieldController.text),
-                  label: s.labelController.text.trim(),
-                ))
-            .toList(),
-      );
-      context.read<FarmProvider>().addFarm(farm);
-      Navigator.pop(context);
-    }
+    if (!_formKey.currentState!.validate()) return;
+
+    final farm = Farm(
+      id: _uuid.v4(),
+      name: _nameController.text.trim(),
+      sensors: _sensors
+          .map((s) => SensorSource(
+                id: _uuid.v4(),
+                channelId: int.parse(s.channelController.text),
+                readApiKey: s.apiKeyController.text.trim(),
+                fieldNumber: int.parse(s.fieldController.text),
+                label: s.labelController.text.trim(),
+                minIdeal: double.parse(s.minController.text),
+                maxIdeal: double.parse(s.maxController.text),
+              ))
+          .toList(),
+    );
+
+    context.read<FarmProvider>().addFarm(farm);
+    Navigator.pop(context);
   }
 
   @override
@@ -60,57 +66,58 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
               decoration: const InputDecoration(labelText: 'Farm Name'),
               validator: (v) => v!.isEmpty ? 'Enter a name' : null,
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 20),
+
             Text('Sensors', style: Theme.of(context).textTheme.titleMedium),
+
             ..._sensors.asMap().entries.map((entry) {
               final idx = entry.key;
-              final sensor = entry.value;
+              final s = entry.value;
+
               return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
                       TextFormField(
-                        controller: sensor.channelController,
+                        controller: s.labelController,
+                        decoration: const InputDecoration(labelText: 'Label'),
+                      ),
+                      TextFormField(
+                        controller: s.channelController,
                         decoration:
                             const InputDecoration(labelText: 'Channel ID'),
                         keyboardType: TextInputType.number,
-                        validator: (v) =>
-                            v!.isEmpty ? 'Required' : null,
                       ),
                       TextFormField(
-                        controller: sensor.apiKeyController,
+                        controller: s.apiKeyController,
                         decoration:
-                            const InputDecoration(labelText: 'Read API Key'),
-                        validator: (v) =>
-                            v!.isEmpty ? 'Required' : null,
+                            const InputDecoration(labelText: 'API Key'),
+                      ),
+                      TextFormField(
+                        controller: s.fieldController,
+                        decoration:
+                            const InputDecoration(labelText: 'Field (1-8)'),
+                        keyboardType: TextInputType.number,
                       ),
                       Row(
                         children: [
                           Expanded(
                             child: TextFormField(
-                              controller: sensor.fieldController,
-                              decoration: const InputDecoration(
-                                  labelText: 'Field (1-8)'),
+                              controller: s.minController,
+                              decoration:
+                                  const InputDecoration(labelText: 'Min Ideal'),
                               keyboardType: TextInputType.number,
-                              validator: (v) {
-                                final n = int.tryParse(v ?? '');
-                                if (n == null || n < 1 || n > 8) {
-                                  return '1-8';
-                                }
-                                return null;
-                              },
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextFormField(
-                              controller: sensor.labelController,
+                              controller: s.maxController,
                               decoration:
-                                  const InputDecoration(labelText: 'Label'),
-                              validator: (v) =>
-                                  v!.isEmpty ? 'Required' : null,
+                                  const InputDecoration(labelText: 'Max Ideal'),
+                              keyboardType: TextInputType.number,
                             ),
                           ),
                         ],
@@ -118,21 +125,22 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: IconButton(
-                          icon: const Icon(Icons.remove_circle_outline),
+                          icon: const Icon(Icons.delete),
                           onPressed: () => _removeSensor(idx),
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),
               );
             }),
+
             TextButton.icon(
               onPressed: _addSensor,
               icon: const Icon(Icons.add),
               label: const Text('Add Sensor'),
             ),
-            const SizedBox(height: 24),
+
             ElevatedButton(
               onPressed: _saveFarm,
               child: const Text('Save Farm'),
@@ -142,28 +150,22 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    for (var s in _sensors) {
-      s.dispose();
-    }
-    super.dispose();
-  }
 }
 
-// Helper class to hold TextEditingControllers for each sensor row
 class _SensorInput {
+  final labelController = TextEditingController();
   final channelController = TextEditingController();
   final apiKeyController = TextEditingController();
   final fieldController = TextEditingController();
-  final labelController = TextEditingController();
+  final minController = TextEditingController();
+  final maxController = TextEditingController();
 
   void dispose() {
+    labelController.dispose();
     channelController.dispose();
     apiKeyController.dispose();
     fieldController.dispose();
-    labelController.dispose();
+    minController.dispose();
+    maxController.dispose();
   }
 }

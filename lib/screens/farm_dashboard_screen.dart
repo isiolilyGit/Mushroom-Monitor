@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import '../models/farm.dart';
 import '../services/api_service.dart';
 
@@ -23,20 +22,25 @@ class _FarmDashboardScreenState extends State<FarmDashboardScreen> {
 
   Future<List<List<Map<String, dynamic>>>> _fetchAllSensors() async {
     final results = <List<Map<String, dynamic>>>[];
+
     for (var sensor in widget.farm.sensors) {
       try {
         final data = await ThingSpeakApi.getFieldFeed(
           channelId: sensor.channelId,
           readApiKey: sensor.readApiKey,
           fieldNumber: sensor.fieldNumber,
-          results: 100,   // you can adjust this
+          results: 100,
         );
+
+        debugPrint('${sensor.label}: ${data.length} points');
+
         results.add(data);
       } catch (e) {
-        debugPrint('Error fetching ${sensor.label}: $e');
-        results.add([]);  // empty list on error
+        debugPrint('ERROR ${sensor.label}: $e');
+        results.add([]);
       }
-    }
+   }
+
     return results;
   }
 
@@ -80,10 +84,14 @@ class _FarmDashboardScreenState extends State<FarmDashboardScreen> {
       );
     }
 
+    data.sort(((a, b) => 
+      DateTime.parse(a['created_at']).compareTo(DateTime.parse(b['created_at']))));
     final spots = data.map((entry) {
       final dateTime = DateTime.parse(entry['created_at']);
       // x‑axis uses milliseconds since epoch for accurate time spacing
-      final x = dateTime.millisecondsSinceEpoch.toDouble();
+      final now = DateTime.now();
+      final diffHours = now.difference(dateTime).inMinutes / 60.0;
+      final x = -diffHours; // negative = past time
       final y = (entry['value'] as num).toDouble();
       return FlSpot(x, y);
     }).toList();
@@ -101,6 +109,8 @@ class _FarmDashboardScreenState extends State<FarmDashboardScreen> {
               height: 200,
               child: LineChart(
                 LineChartData(
+                  minX: -24,  // 24 hours in minutes
+                  maxX: 0,
                   gridData: const FlGridData(show: true),
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
@@ -108,17 +118,20 @@ class _FarmDashboardScreenState extends State<FarmDashboardScreen> {
                         showTitles: true,
                         reservedSize: 40,
                         getTitlesWidget: (value, meta) {
-                          if (value == meta.min || value == meta.max) {
-                            final date = DateTime.fromMillisecondsSinceEpoch(
-                                value.toInt());
+                          final hour = value.toInt();
+
+                          if (hour % 6 == 0) {
+                            final label = '${hour.abs()}h';
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                DateFormat('MM/dd').format(date),
+                                label,
                                 style: const TextStyle(fontSize: 10),
                               ),
                             );
                           }
+
+
                           return const Text('');
                         },
                       ),
