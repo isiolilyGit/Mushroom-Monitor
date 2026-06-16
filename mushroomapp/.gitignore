@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Other Platforms on which the app can run
+web/
+windows/
+linux/
+macos/ 
+ios/
+

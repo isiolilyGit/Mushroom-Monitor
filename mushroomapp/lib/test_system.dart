@@ -1,17 +1,19 @@
 // test_system.dart
-
 // ignore_for_file: avoid_print
+
+import 'package:flutter/material.dart';
 
 import 'package:mushroomapp/models/sensor_models.dart';
 import 'package:mushroomapp/services/thingspeak_service.dart';
-import 'package:mushroomapp/logic/classification_engine.dart';
 import 'package:mushroomapp/repositories/sensor_repository.dart';
+import 'package:mushroomapp/logic/classification_engine.dart';
 import 'package:mushroomapp/services/env_controller.dart';
+import 'package:mushroomapp/screens/dashboard.dart';
 
 Future<void> main() async {
   final thingSpeak = ThingSpeakService(
     channelId: '3393042',
-    readApiKey: ''
+    readApiKey: '',
   );
 
   final repository = SensorRepository(
@@ -19,48 +21,25 @@ Future<void> main() async {
   );
 
   final controller = EnvironmentController(
-  repository: repository,
-  engine: ClassificationEngine(
-    stage: GrowthStage.spawnRun,
-  ),
-);
-
- // Start live monitoring
-  controller.startMonitoring(
-    interval: const Duration(seconds: 10), // for testing
+    repository: repository,
+    engine: ClassificationEngine(
+      stage: GrowthStage.spawnRun,
+    ),
   );
 
-  try {
-    // Fetch data from ThingSpeak
-    final reading = await repository.getLatestReading();
+  runApp(MyApp(controller: controller));
+}
 
-    print('\n=== SENSOR READING ===');
-    print(reading);
+class MyApp extends StatelessWidget {
+  final EnvironmentController controller;
 
-    // Classify for Spawn Run stage
-    final engine = ClassificationEngine(
-      stage: GrowthStage.spawnRun,
+  const MyApp({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: DashboardScreen(controller: controller),
     );
-
-    final result = engine.classify(reading);
-
-    // Listen to live classification results
-  controller.stream.listen((result) {
-    print('\n============================');
-    print('STATUS: ${result.status}');
-    print('MESSAGE: ${result.message}');
-    print('TEMP: ${result.temperature}');
-    print('HUMIDITY: ${result.humidity}');
-    print('CO2: ${result.co2}');
-    print('============================');
-  });
-
-    print('\n=== CLASSIFICATION RESULT ===');
-    print(result);
-
-    print('\nStatus: ${result.status}');
-    print('Message: ${result.message}');
-  } catch (e) {
-    print('ERROR: $e');
   }
 }
