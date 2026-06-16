@@ -23,14 +23,17 @@ import 'dart:async';
 import 'package:mushroomapp/models/sensor_models.dart';
 import 'package:mushroomapp/repositories/sensor_repository.dart';
 import 'package:mushroomapp/logic/classification_engine.dart';
+import 'package:mushroomapp/services/email_alert_service.dart';
 
 class EnvironmentController {
   final SensorRepository repository;
   final ClassificationEngine engine;
+  final EmailAlertService emailalertService;
 
   EnvironmentController({
     required this.repository,
     required this.engine,
+    required this.emailalertService,
   });
 
   
@@ -62,6 +65,16 @@ class EnvironmentController {
         final ClassificationResult result =
             engine.classify(reading);
 
+        // Trigger alert if critical
+        if (result.status == SensorStatus.critical) {
+          await emailalertService.sendCriticalAlert(
+            status: result.status,
+            message: result.message,
+            temperature: reading.temperature,
+            humidity: reading.humidity,
+            co2: reading.co2,
+          );
+        }
         // 3. Push result to UI stream
         _streamController.add(result);
       } catch (e) {

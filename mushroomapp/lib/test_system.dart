@@ -9,6 +9,7 @@ import 'package:mushroomapp/repositories/sensor_repository.dart';
 import 'package:mushroomapp/logic/classification_engine.dart';
 import 'package:mushroomapp/services/env_controller.dart';
 import 'package:mushroomapp/screens/dashboard.dart';
+import 'package:mushroomapp/services/email_alert_service.dart';
 
 Future<void> main() async {
   final thingSpeak = ThingSpeakService(
@@ -20,11 +21,15 @@ Future<void> main() async {
     thingSpeakService: thingSpeak,
   );
 
+  final alertService = EmailAlertService();
+
   final controller = EnvironmentController(
     repository: repository,
     engine: ClassificationEngine(
       stage: GrowthStage.spawnRun,
     ),
+    // alertService:  EmailAlertService(),
+    emailalertService: alertService,
   );
 
   runApp(MyApp(controller: controller));
