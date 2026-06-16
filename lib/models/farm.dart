@@ -1,42 +1,42 @@
 class SensorSource {
-  final String id;
   final int channelId;
   final String readApiKey;
-  final int fieldNumber;
+
+  /// IMPORTANT: this is now STRING, not int
+  /// Example: "field1", "field2"
+  final String fieldKey;
+
   final String label;
 
-  // 👇 NEW: ideal range for alerts
-  final double minIdeal;
-  final double maxIdeal;
+  /// optional but needed for your dashboard later
+  double? minIdeal;
+  double? maxIdeal;
 
   SensorSource({
-    required this.id,
     required this.channelId,
     required this.readApiKey,
-    required this.fieldNumber,
+    required this.fieldKey,
     required this.label,
-    required this.minIdeal,
-    required this.maxIdeal,
+    this.minIdeal,
+    this.maxIdeal,
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
         'channelId': channelId,
         'readApiKey': readApiKey,
-        'fieldNumber': fieldNumber,
+        'fieldKey': fieldKey,
         'label': label,
         'minIdeal': minIdeal,
         'maxIdeal': maxIdeal,
       };
 
   factory SensorSource.fromJson(Map<String, dynamic> json) => SensorSource(
-        id: json['id'],
         channelId: json['channelId'],
         readApiKey: json['readApiKey'],
-        fieldNumber: json['fieldNumber'],
+        fieldKey: json['fieldKey'],
         label: json['label'],
-        minIdeal: (json['minIdeal'] ?? 0).toDouble(),
-        maxIdeal: (json['maxIdeal'] ?? 100).toDouble(),
+        minIdeal: (json['minIdeal'] as num?)?.toDouble(),
+        maxIdeal: (json['maxIdeal'] as num?)?.toDouble(),
       );
 }
 

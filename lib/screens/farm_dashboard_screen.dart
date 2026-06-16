@@ -20,82 +20,169 @@ class _FarmDashboardScreenState extends State<FarmDashboardScreen> {
     _dataFuture = _fetchAllSensors();
   }
 
-  Future<List<List<Map<String, dynamic>>>> _fetchAllSensors() async {
-    final results = <List<Map<String, dynamic>>>[];
+  double _safeDouble(dynamic v) {
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  }
 
-    for (var sensor in widget.farm.sensors) {
+  DateTime _safeDate(dynamic v) {
+    return DateTime.tryParse(v?.toString() ?? '') ?? DateTime.now();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _dataFuture = _fetchAllSensors();
+    });
+  }
+
+  Future<List<List<Map<String, dynamic>>>> _fetchAllSensors() async {
+    final futures = widget.farm.sensors.map((sensor) async {
       try {
-        final data = await ThingSpeakApi.getFieldFeed(
+        return await ThingSpeakApi.getFieldFeed(
           channelId: sensor.channelId,
           readApiKey: sensor.readApiKey,
-          fieldNumber: sensor.fieldNumber,
-          results: 100,
+          fieldKey: sensor.fieldKey,
+          results: 200,
         );
-
-        debugPrint('${sensor.label}: ${data.length} points');
-
-        results.add(data);
       } catch (e) {
         debugPrint('ERROR ${sensor.label}: $e');
-        results.add([]);
+        return <Map<String, dynamic>>[];
       }
-   }
+    }).toList();
 
-    return results;
+    return Future.wait(futures);
+  }
+
+  bool _isOutOfRange(double value, SensorSource s) {
+    final min = s.minIdeal ?? double.negativeInfinity;
+    final max = s.maxIdeal ?? double.infinity;
+    return value < min || value > max;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.farm.name)),
-      body: FutureBuilder<List<List<Map<String, dynamic>>>>(
-        future: _dataFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Error loading data: ${snapshot.error}'),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: FutureBuilder<List<List<Map<String, dynamic>>>>(
+          future: _dataFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final allData = snapshot.data ?? [];
+
+            return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: widget.farm.sensors.length,
+              itemBuilder: (context, index) {
+                final sensor = widget.farm.sensors[index];
+                final data = allData[index];
+                return _buildSensorCard(sensor, data);
+              },
             );
-          }
-          final allSensorData = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: List.generate(widget.farm.sensors.length, (index) {
-              final sensor = widget.farm.sensors[index];
-              final data = allSensorData[index];
-              return _buildSensorChart(sensor.label, data);
-            }),
-          );
-        },
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildSensorChart(String label, List<Map<String, dynamic>> data) {
-    if (data.isEmpty) {
+  Widget _buildSensorCard(
+    SensorSource sensor,
+    List<Map<String, dynamic>> rawData,
+  ) {
+    if (rawData.isEmpty) {
       return Card(
-        margin: const EdgeInsets.only(bottom: 16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text('$label: No data (check connection / API key)'),
+          child: Text('${sensor.label}: No data'),
         ),
       );
     }
 
-    data.sort(((a, b) => 
-      DateTime.parse(a['created_at']).compareTo(DateTime.parse(b['created_at']))));
-    final spots = data.map((entry) {
-      final dateTime = DateTime.parse(entry['created_at']);
-      // x‑axis uses milliseconds since epoch for accurate time spacing
-      final now = DateTime.now();
-      final diffHours = now.difference(dateTime).inMinutes / 60.0;
-      final x = -diffHours; // negative = past time
-      final y = (entry['value'] as num).toDouble();
-      return FlSpot(x, y);
-    }).toList();
+    // =========================
+    // FILTER LAST 6 HOURS
+    // =========================
+    final cutoff =
+        DateTime.now().subtract(const Duration(hours: 6));
 
+    final points = rawData.map((e) {
+      return {
+        'time': _safeDate(e['created_at']),
+        'value': _safeDouble(e['value']),
+      };
+    }).where((e) => (e['time'] as DateTime).isAfter(cutoff)).toList();
+
+    if (points.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text('${sensor.label}: No recent data'),
+        ),
+      );
+    }
+
+    points.sort((a, b) =>
+        (a['time'] as DateTime).compareTo(b['time'] as DateTime));
+
+    final times = points.map((e) => e['time'] as DateTime).toList();
+    final values = points.map((e) => e['value'] as double).toList();
+
+    // =========================
+    // RESAMPLE INTO 10-MIN BUCKETS (KEY FIX)
+    // =========================
+    const bucketMinutes = 10;
+    const totalMinutes = 360;
+    const bucketCount = totalMinutes ~/ bucketMinutes;
+
+    final buckets = List<List<double>>.generate(
+      bucketCount,
+      (_) => [],
+    );
+
+    for (int i = 0; i < times.length; i++) {
+      final minutesAgo =
+          DateTime.now().difference(times[i]).inMinutes;
+
+      if (minutesAgo < 0 || minutesAgo > totalMinutes) continue;
+
+      final bucketIndex = minutesAgo ~/ bucketMinutes;
+
+      if (bucketIndex >= 0 && bucketIndex < bucketCount) {
+        buckets[bucketIndex].add(values[i]);
+      }
+    }
+
+    final spots = <FlSpot>[];
+
+    for (int i = 0; i < bucketCount; i++) {
+      if (buckets[i].isEmpty) continue;
+
+      final avg = buckets[i].reduce((a, b) => a + b) /
+          buckets[i].length;
+
+      final x = bucketCount - i.toDouble();
+
+      spots.add(FlSpot(x, avg));
+    }
+
+    final latest = values.last;
+    final isOut = _isOutOfRange(latest, sensor);
+
+    final minY = values.reduce((a, b) => a < b ? a : b);
+    final maxY = values.reduce((a, b) => a > b ? a : b);
+
+    final padding = (maxY - minY) * 0.2;
+
+    // =========================
+    // UI
+    // =========================
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -103,57 +190,81 @@ class _FarmDashboardScreenState extends State<FarmDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(sensor.label,
+                    style: Theme.of(context).textTheme.titleMedium),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isOut ? Colors.red : Colors.green,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    latest.toStringAsFixed(1),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+
             const SizedBox(height: 12),
+
             SizedBox(
-              height: 200,
+              height: 240,
               child: LineChart(
                 LineChartData(
-                  minX: -24,  // 24 hours in minutes
-                  maxX: 0,
+                  minX: 0,
+                  maxX: bucketCount.toDouble(),
+                  minY: minY - padding,
+                  maxY: maxY + padding,
+
                   gridData: const FlGridData(show: true),
+
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 40,
+                        interval: 6,
                         getTitlesWidget: (value, meta) {
-                          final hour = value.toInt();
+                          final hoursAgo =
+                              ((bucketCount - value) * 10) ~/ 60;
+                          final dt = DateTime.now()
+                              .subtract(Duration(hours: hoursAgo));
 
-                          if (hour % 6 == 0) {
-                            final label = '${hour.abs()}h';
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                label,
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            );
-                          }
-
-
-                          return const Text('');
+                          return Text(
+                            '${dt.hour}:00',
+                            style: const TextStyle(fontSize: 10),
+                          );
                         },
                       ),
                     ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
+
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                      ),
                     ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
+
                     rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
+
                   borderData: FlBorderData(show: false),
+
                   lineBarsData: [
                     LineChartBarData(
                       spots: spots,
                       isCurved: true,
-                      color: Theme.of(context).colorScheme.primary,
+                      curveSmoothness: 0.35,
                       barWidth: 3,
                       dotData: const FlDotData(show: false),
+                      color: isOut ? Colors.red : Colors.green,
                     ),
                   ],
                 ),
