@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "543286410612",
+    "project_id": "mushroommonitor-7cd37",
+    "storage_bucket": "mushroommonitor-7cd37.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:543286410612:android:2056e0feb30bc75f8a0021",
+        "android_client_info": {
+          "package_name": "com.example.mushroom_monitor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2w39hixQkPpPsjiCIY9goEaGGxGYb51w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
