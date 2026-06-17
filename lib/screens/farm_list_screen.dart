@@ -33,14 +33,53 @@ class FarmListScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final farm = provider.farms[index];
 
+                final ageDays = DateTime.now().difference(farm.startDate).inDays;
+
+                String growthStage;
+                if (ageDays <= 30) {
+                  growthStage = 'Spawn Run';
+                } else if (ageDays <= 44) {
+                  growthStage = "Pinning Stage";
+                } else if (ageDays <= 80) {
+                  growthStage = "Fruiting Stage";
+                } else {
+                  growthStage = "Harvest Stage";
+                }
+
                 return ListTile(
                   title: Text(farm.name),
-                  subtitle: Text('${farm.sensors.length} sensors'),
+                  subtitle: Text('${farm.sensors.length} sensors\n'
+                  'Days: $ageDays : $growthStage',),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete),
-                    onPressed: () {
-                      context.read<FarmProvider>().deleteFarm(farm.id);
-                    },
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) {
+                          return AlertDialog(
+                            title: const Text("Delete Farm?"),
+                            content: const Text(
+                                "Are you sure you want to delete this farm?"),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, false),
+                                child: const Text("Cancel"),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, true),
+                                child: const Text("Delete"),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirm == true && context.mounted) {
+                        context.read<FarmProvider>().deleteFarm(farm.id);
+                      }}
+ 
                   ),
                   onTap: () {
                     Navigator.push(

@@ -10,7 +10,7 @@ class StorageService {
     final jsonString = prefs.getString(_farmsKey);
     if (jsonString == null) return [];
     final List<dynamic> list = json.decode(jsonString);
-    return list.map((item) => Farm.fromJson(item)).toList();
+    return list.map((f) => Farm.fromJson(f)).toList();
   }
 
   static Future<void> saveFarms(List<Farm> farms) async {

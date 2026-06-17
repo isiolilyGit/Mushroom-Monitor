@@ -50,16 +50,17 @@ class ThingSpeakApi {
 
     final data = json.decode(response.body);
     final feeds = data['feeds'] as List;
-    debugPrint("RAW RESPONSE: $data.toString()");
+    debugPrint(
+      "RAW RESPONSE: ${data.toString()}",);
     debugPrint("FIELD KEY: $fieldKey");
     debugPrint("FIRST FEED: ${feeds.isNotEmpty ? feeds.first : 'EMPTY'}");
 
     return feeds
-        .where((f) => f[fieldKey] != null)
+        .where((f) => f[fieldKey] != null && double.tryParse(f[fieldKey].toString(),) != null,)
         .map(
           (f) => {
             'created_at': f['created_at'],
-            'value': double.tryParse(f[fieldKey].toString()) ?? 0.0,
+            'value': double.tryParse(f[fieldKey].toString(),),
           },
         )
         .toList();
@@ -68,10 +69,11 @@ class ThingSpeakApi {
   /// ---------------------------------------------
   /// FETCH LAST 24 HOURS ONLY (IMPORTANT FOR DASHBOARD)
   /// ---------------------------------------------
-  static Future<List<Map<String, dynamic>>> getLast24Hours({
+  static Future<List<Map<String, dynamic>>> getRecentData({
     required int channelId,
     required String readApiKey,
     required String fieldKey,
+    int hours = 6,
   }) async {
     final allData = await getFieldFeed(
       channelId: channelId,
@@ -83,8 +85,8 @@ class ThingSpeakApi {
     final now = DateTime.now();
 
     return allData.where((entry) {
-      final time = DateTime.parse(entry['created_at']);
-      return now.difference(time).inHours <= 24;
+      final time = DateTime.parse(entry['created_at'],);
+      return now.difference(time).inHours <= hours;
     }).toList();
   }
 

@@ -38,12 +38,14 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
     final farm = Farm(
       id: const Uuid().v4(),
       name: _nameController.text.trim(),
+      startDate: DateTime.now(),
       sensors: _sensors.map((s) {
         return SensorSource(
           channelId: int.parse(s.channelController.text.trim()),
           readApiKey: s.apiKeyController.text.trim(),
           fieldKey: s.fieldKeyController.text.trim(), // IMPORTANT FIX
           label: s.labelController.text.trim(),
+          unit: s.unitController.text.trim(),
           minIdeal: double.tryParse(s.minController.text.trim()),
           maxIdeal: double.tryParse(s.maxController.text.trim()),
         );
@@ -127,6 +129,15 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
                             (v == null || v.isEmpty) ? 'Required' : null,
                       ),
 
+                      TextFormField(
+                        controller: sensor.unitController,
+                        decoration: const InputDecoration(
+                          labelText: 'Unit (e.g. °C, %, ppm, etc.)',
+                        ),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Enter Unit' : null,
+                      ),
+
                       Row(
                         children: [
                           Expanded(
@@ -201,6 +212,7 @@ class _SensorInput {
   final channelController = TextEditingController();
   final apiKeyController = TextEditingController();
   final fieldKeyController = TextEditingController();
+  final unitController = TextEditingController();
   final labelController = TextEditingController();
   final minController = TextEditingController();
   final maxController = TextEditingController();
@@ -209,6 +221,7 @@ class _SensorInput {
     channelController.dispose();
     apiKeyController.dispose();
     fieldKeyController.dispose();
+    unitController.dispose();
     labelController.dispose();
     minController.dispose();
     maxController.dispose();

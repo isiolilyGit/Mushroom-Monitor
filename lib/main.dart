@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/farm_provider.dart';
 import 'screens/farm_list_screen.dart';
+import 'theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,13 +20,17 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Mushroom Monitor',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-          useMaterial3: true,
-        ),
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
 
         // ✅ START HERE (not dashboard directly)
-        home: const FarmListScreen(),
+        home: Consumer<FarmProvider>(
+          builder: (context, provider, child) {
+            if(!provider.isLoaded) {
+              return const Scaffold(body: Center(child: CircularProgressIndicator(),),);}
+            return const FarmListScreen();
+          }),
       ),
     );
   }

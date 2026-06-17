@@ -29,6 +29,13 @@ class FarmProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateFarm(Farm farm) async {
+    final index = _farms.indexWhere((f) => f.id == farm.id);
+    _farms[index] = farm;
+    await StorageService.saveFarms(_farms);
+    notifyListeners();
+  }
+
   Future<void> deleteFarm(String id) async {
     _farms.removeWhere((f) => f.id == id);
     await StorageService.saveFarms(_farms);

@@ -1,6 +1,7 @@
 class SensorSource {
   final int channelId;
   final String readApiKey;
+  final String unit;
 
   /// IMPORTANT: this is now STRING, not int
   /// Example: "field1", "field2"
@@ -15,6 +16,7 @@ class SensorSource {
   SensorSource({
     required this.channelId,
     required this.readApiKey,
+    required this.unit,
     required this.fieldKey,
     required this.label,
     this.minIdeal,
@@ -26,6 +28,7 @@ class SensorSource {
         'readApiKey': readApiKey,
         'fieldKey': fieldKey,
         'label': label,
+        'unit' : unit,
         'minIdeal': minIdeal,
         'maxIdeal': maxIdeal,
       };
@@ -35,6 +38,7 @@ class SensorSource {
         readApiKey: json['readApiKey'],
         fieldKey: json['fieldKey'],
         label: json['label'],
+        unit: json['unit'] ?? '',
         minIdeal: (json['minIdeal'] as num?)?.toDouble(),
         maxIdeal: (json['maxIdeal'] as num?)?.toDouble(),
       );
@@ -43,23 +47,52 @@ class SensorSource {
 class Farm {
   final String id;
   final String name;
+  final DateTime startDate;
   final List<SensorSource> sensors;
 
   Farm({
     required this.id,
     required this.name,
+    required this.startDate,
     required this.sensors,
   });
 
+  int get ageDays {
+  return DateTime.now()
+      .difference(startDate)
+      .inDays;
+}
+
+
+  String get growthStage {
+
+  if (ageDays <= 3) {
+    return "Colonization Stage";
+  }
+
+  if (ageDays <= 10) {
+    return "Pinning Stage";
+  }
+
+  if (ageDays <= 20) {
+    return "Fruiting Stage";
+  }
+
+  return "Harvest Stage";
+
+}
+  
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        'startDate': startDate.toIso8601String(),
         'sensors': sensors.map((s) => s.toJson()).toList(),
       };
 
   factory Farm.fromJson(Map<String, dynamic> json) => Farm(
         id: json['id'],
         name: json['name'],
+        startDate: json['startDate'] == null ? DateTime.now() : DateTime.parse((json['startDate'])??DateTime.now()),
         sensors: (json['sensors'] as List)
             .map((s) => SensorSource.fromJson(s))
             .toList(),
