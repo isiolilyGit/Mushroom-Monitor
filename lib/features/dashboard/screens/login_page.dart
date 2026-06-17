@@ -50,7 +50,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      // No navigation here — AuthWrapper reacts to the auth state change.
+
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } catch (e) {
       if (mounted) {
         ref.read(authErrorProvider.notifier).state = e.toString().replaceFirst(

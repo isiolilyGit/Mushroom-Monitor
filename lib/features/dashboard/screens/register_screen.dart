@@ -74,7 +74,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         _passwordController.text,
         _nameController.text.trim(),
       );
-      // No navigation here — AuthWrapper reacts to the auth state change.
+
+      // Pop back to the root route so AuthWrapper (now showing MainShell)
+      // is actually visible, instead of staying buried under this screen.
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } catch (e) {
       if (mounted) {
         ref.read(authErrorProvider.notifier).state = e.toString().replaceFirst(

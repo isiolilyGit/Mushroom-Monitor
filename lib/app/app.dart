@@ -24,7 +24,7 @@ class MushroomApp extends ConsumerWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/dashboard': (context) => const MainShell(), // ← updated
+        '/dashboard': (context) => const MainShell(),
       },
     );
   }
@@ -35,18 +35,28 @@ class AuthWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Reset the bottom-nav tab whenever the user transitions to logged-out,
+    // so the next login always lands back on the Dashboard tab.
+    ref.listen(authStateProvider, (previous, next) {
+      final wasLoggedIn = previous?.value != null;
+      final isNowLoggedOut = next.value == null;
+      if (wasLoggedIn && isNowLoggedOut) {
+        ref.read(bottomNavIndexProvider.notifier).state = 0;
+      }
+    });
+
     final authState = ref.watch(authStateProvider);
 
     return authState.when(
       data: (user) {
         if (user != null) {
-          return const MainShell(); // ← updated
+          return const MainShell();
         }
         return const LoginScreen();
       },
 
       loading: () => const Scaffold(
-        backgroundColor: Color(0xFF0F1F0F), // matches your dark app theme
+        backgroundColor: Color(0xFF0F1F0F),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
