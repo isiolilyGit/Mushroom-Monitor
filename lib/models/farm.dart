@@ -1,6 +1,7 @@
 class SensorSource {
   final int channelId;
   final String readApiKey;
+  String? writeApiKey;
   final String unit;
 
   /// IMPORTANT: this is now STRING, not int
@@ -16,6 +17,7 @@ class SensorSource {
   SensorSource({
     required this.channelId,
     required this.readApiKey,
+    this.writeApiKey,
     required this.unit,
     required this.fieldKey,
     required this.label,
@@ -26,6 +28,7 @@ class SensorSource {
   Map<String, dynamic> toJson() => {
         'channelId': channelId,
         'readApiKey': readApiKey,
+        'writeApiKey': writeApiKey,
         'fieldKey': fieldKey,
         'label': label,
         'unit' : unit,
@@ -36,6 +39,7 @@ class SensorSource {
   factory SensorSource.fromJson(Map<String, dynamic> json) => SensorSource(
         channelId: json['channelId'],
         readApiKey: json['readApiKey'],
+        writeApiKey: json['writeApiKey'],
         fieldKey: json['fieldKey'],
         label: json['label'],
         unit: json['unit'] ?? '',

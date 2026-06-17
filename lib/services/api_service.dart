@@ -6,6 +6,28 @@ import "package:flutter/foundation.dart";
 class ThingSpeakApi {
   static const String baseUrl = 'https://api.thingspeak.com';
 
+  static Future<void> updateThingSpeakField({
+  required int channelId,
+  required String writeApiKey,
+  required String field,
+  required String value,
+}) async {
+
+  final url = Uri.https("api.thingspeak.com", "/update", {"api_key": writeApiKey, "field5": value});
+
+
+  final response =
+      await http.get(url);
+
+
+  if(response.statusCode != 200){
+    throw Exception(
+      "ThingSpeak update failed"
+    );
+  }
+
+}
+
   /// ---------------------------------------------
   /// FETCH CHANNEL METADATA (for auto-detection)
   /// ---------------------------------------------

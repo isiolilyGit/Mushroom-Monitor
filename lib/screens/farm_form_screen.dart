@@ -42,7 +42,8 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
       sensors: _sensors.map((s) {
         return SensorSource(
           channelId: int.parse(s.channelController.text.trim()),
-          readApiKey: s.apiKeyController.text.trim(),
+          readApiKey: s.readApiKeyController.text.trim(),
+          writeApiKey: s.writeApiKeyController.text.trim().isEmpty ? null : s.writeApiKeyController.text.trim(),
           fieldKey: s.fieldKeyController.text.trim(), // IMPORTANT FIX
           label: s.labelController.text.trim(),
           unit: s.unitController.text.trim(),
@@ -103,13 +104,19 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
                       ),
 
                       TextFormField(
-                        controller: sensor.apiKeyController,
+                        controller: sensor.readApiKeyController,
                         decoration: const InputDecoration(
                           labelText: 'Read API Key',
                         ),
                         validator: (v) =>
                             (v == null || v.isEmpty) ? 'Required' : null,
                       ),
+
+                      TextFormField(
+                        controller: sensor.writeApiKeyController,
+                        decoration: const InputDecoration(
+                          labelText: 'Write API Key (Optional if you want to update date values)',
+                        )),
 
                       TextFormField(
                         controller: sensor.fieldKeyController,
@@ -210,7 +217,8 @@ class _FarmFormScreenState extends State<FarmFormScreen> {
 /// --------------------------------------
 class _SensorInput {
   final channelController = TextEditingController();
-  final apiKeyController = TextEditingController();
+  final readApiKeyController = TextEditingController();
+  final writeApiKeyController = TextEditingController();
   final fieldKeyController = TextEditingController();
   final unitController = TextEditingController();
   final labelController = TextEditingController();
@@ -219,7 +227,8 @@ class _SensorInput {
 
   void dispose() {
     channelController.dispose();
-    apiKeyController.dispose();
+    readApiKeyController.dispose();
+    writeApiKeyController.dispose();
     fieldKeyController.dispose();
     unitController.dispose();
     labelController.dispose();
