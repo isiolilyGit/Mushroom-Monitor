@@ -24,11 +24,14 @@ import 'package:mushroomapp/models/sensor_models.dart';
 import 'package:mushroomapp/repositories/sensor_repository.dart';
 import 'package:mushroomapp/logic/classification_engine.dart';
 import 'package:mushroomapp/services/email_alert_service.dart';
+//import 'package:mushroomapp/config/alert_config.dart';
 
 class EnvironmentController {
   final SensorRepository repository;
   final ClassificationEngine engine;
   final EmailAlertService emailalertService;
+
+  List<String> _alertRecipients = [];
 
   EnvironmentController({
     required this.repository,
@@ -48,6 +51,12 @@ class EnvironmentController {
   Timer? _timer;
   bool _isRunning = false;
 
+
+  void setAlertRecipients(List<String> emails) {
+    _alertRecipients = emails;
+  }
+
+  List<String> get alertRecipients => _alertRecipients;
   // START LIVE MONITORING
 
   void startMonitoring({Duration interval = const Duration(seconds: 30)}) {
@@ -66,13 +75,14 @@ class EnvironmentController {
             engine.classify(reading);
 
         // Trigger alert if critical
-        if (result.status == SensorStatus.critical) {
+        if (_alertRecipients.isNotEmpty) {
           await emailalertService.sendCriticalAlert(
+            recipientEmails: _alertRecipients,
             status: result.status,
             message: result.message,
-            temperature: reading.temperature,
-            humidity: reading.humidity,
-            co2: reading.co2,
+            temperature: result.temperature,
+            humidity: result.humidity,
+            co2: result.co2,
           );
         }
         // 3. Push result to UI stream

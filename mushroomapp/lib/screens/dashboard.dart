@@ -20,7 +20,45 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  String? _alertEmail;
   bool isMonitoring = false;
+
+  Future<String?> _showEmailDialog() async {
+  final emailController = TextEditingController();
+
+  return showDialog<String>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Alert Email'),
+        content: TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            hintText: 'Enter email address',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                emailController.text.trim(),
+              );
+            },
+            child: const Text('Start Monitoring'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   Color _statusColor(String status) {
     switch (status) {
@@ -48,15 +86,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _startMonitoring() {
-    widget.controller.startMonitoring(
-      interval: const Duration(seconds: 10),
+ Future<void> _startMonitoring() async {
+  final email = await _showEmailDialog();
+
+  if (email == null || email.isEmpty) {
+    return;
+  }
+
+  if (!email.contains('@')) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please enter a valid email address'),
+      ),
     );
 
-    setState(() {
-      isMonitoring = true;
-    });
+    return;
   }
+
+  _alertEmail = email;
+
+  widget.controller.setAlertRecipients([
+    email,
+  ]);
+
+  widget.controller.startMonitoring(
+    interval: const Duration(seconds: 10),
+  );
+
+  setState(() {
+    isMonitoring = true;
+  });
+}
 
   void _stopMonitoring() {
     widget.controller.stopMonitoring();
@@ -118,7 +180,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               fontWeight: FontWeight.bold,
               color: isMonitoring ? Colors.green : Colors.red,
             ),
+            
           ),
+
+          if (_alertEmail != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Alert Email: $_alertEmail',
+                style: const TextStyle(
+                  fontSize: 12,
+                ),
+              ),
+            ),
 
           const SizedBox(height: 10),
 
